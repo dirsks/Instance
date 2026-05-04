@@ -4,49 +4,28 @@ import os
 
 app = Flask(__name__)
 
-# Tentativa de conexão robusta
-def get_redis_client():
-    kv_url = os.environ.get('KV_URL')
-    if not kv_url:
-        return None
-    try:
-        return redis.from_url(kv_url, decode_responses=True)
-    except:
-        return None
+# Conexão segura com Redis
+KV_URL = os.environ.get('KV_URL')
+r = redis.from_url(KV_URL, decode_responses=True) if KV_URL else None
 
-r = get_redis_client()
-
-@app.route('/', methods=['GET'])
-def handle():
-    # ... resto do código igual ...
-    # Se o Redis não estiver configurado, avisa o erro de forma clara
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def catch_all(path):
     if r is None:
-        return jsonify({"error": "KV_URL não configurada ou Redis offline"}), 500
-
+        return "Erro: KV_URL não configurada", 500
+        
     action = request.args.get('action')
     place_id = request.args.get('placeid')
 
-    # WEBSITE envia o ID
     if action == 'push' and place_id:
-        try:
-            r.set('current_job', place_id, ex=10)
-            return "OK", 200
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
+        r.set('current_job', place_id, ex=10)
+        return f"OK: {place_id}", 200
 
-    # PYTHON local busca o ID
     if action == 'pull':
-        try:
-            job = r.get('current_job')
-            if job:
-                r.delete('current_job')
-                return jsonify({"placeId": job}), 200
-            return jsonify({"placeId": None}), 404
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
+        job = r.get('current_job')
+        if job:
+            r.delete('current_job')
+            return jsonify({"placeId": job}), 200
+        return jsonify({"placeId": None}), 404
 
-    return "Invalid Action", 400
-
-# Export para a Vercel
-def handler(event, context):
-    return app(event, context)
+    return "Ação Inválida ou API Ativa", 200
