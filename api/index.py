@@ -16,8 +16,9 @@ def get_redis_client():
 
 r = get_redis_client()
 
-@app.route('/api', methods=['GET'])
+@app.route('/', methods=['GET'])
 def handle():
+    # ... resto do código igual ...
     # Se o Redis não estiver configurado, avisa o erro de forma clara
     if r is None:
         return jsonify({"error": "KV_URL não configurada ou Redis offline"}), 500
